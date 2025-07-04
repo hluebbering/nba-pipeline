@@ -1,0 +1,2 @@
+[tool.dagster]
+module = "dagster"      # <- matches the package above

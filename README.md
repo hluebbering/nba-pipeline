@@ -147,6 +147,16 @@ dbt build --select tag:core
 | P3    | **Month 2** | Team simulation & sentiment integration     |
 | P4    | **Month 3** | Streamlit dashboards + automated scheduling |
 
+
+
+- Week 0 – Stand up GCP project, BQ datasets, and Composer; commit repo skeleton.
+- Week 1 – Ingest/backfill game logs 2014-2025; populate dim_*, fct_boxscore.
+- Week 2 – Build dbt models for rolling player stats + team ELO; validate with Looker.
+- Week 3 – Baseline CatBoost model: predict next-game points (features = last-10 rolling stats, minutes, opponent DRTG, rest days).
+- Week 4 – Case study: Pacers-OKC series. Join fatigue (games in 14 days), social sentiment, and Net Rating trend; write blog-style notebook.
+
+
+
 ## Contributing
 
 PRs welcome! See `CONTRIBUTING.md` for guidelines & DCO.
