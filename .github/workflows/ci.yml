@@ -14,7 +14,7 @@ jobs:
       - name: Lint
         run: |
           pip install ruff
-          ruff src --select E,F --show-source
+          ruff --select E,F --show-source src
       - name: Unit tests
         run: |
           pip install pytest
