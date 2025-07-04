@@ -18,4 +18,4 @@ jobs:
       - name: Unit tests
         run: |
           pip install pytest
-          pytest -q
+          pytest -q tests
