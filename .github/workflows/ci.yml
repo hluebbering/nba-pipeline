@@ -1,0 +1,21 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: env.yml
+          activate-environment: nba-engine
+      - name: Lint
+        run: |
+          pip install ruff
+          ruff src --select E,F --show-source
+      - name: Unit tests
+        run: |
+          pip install pytest
+          pytest -q
