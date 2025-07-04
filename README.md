@@ -3,6 +3,7 @@
 > Build a reusable pipeline that ingests multi‑modal NBA data, transforms it in BigQuery, and serves advanced models & dashboards that explain storylines (e.g., Pacers’ Game 7 push) and project future performance (e.g., Timberwolves 2025 season outlook).
 
 <summary>
+
 - [Core Questions](#core-questions)
 - [Objectives](#objectives)
 - [Architecture](#architecture)
@@ -14,6 +15,7 @@
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
+
 </summary>
 
 
@@ -37,6 +39,7 @@
 ## Architecture
 
 <details>
+
 ```mermaid
 flowchart TD
   A[Dagster Assets] -->|APIs & Scrapers| B(GCS Raw)
@@ -47,6 +50,7 @@ flowchart TD
   D --> G(Streamlit 2.0 Dashboards)
   C --> H(FastAPI + Arrow Flight SQL)
 ```
+
 </details>
 
 
