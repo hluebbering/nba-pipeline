@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+.env
+*.py[cod]
+*.egg-info/
+
+# Conda / venv
+.env/
+.venv/
+*.conda
+*.ipynb_checkpoints/
+
+# Dagster
+dagster_home/
+
+# dbt
+dbt_packages/
+target/
+logs/
+
+# VSCode
+.vscode/
