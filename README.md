@@ -2,7 +2,7 @@
 
 > Build a reusable pipeline that ingests multi‑modal NBA data, transforms it in BigQuery, and serves advanced models & dashboards that explain storylines (e.g., Pacers’ Game 7 push) and project future performance (e.g., Timberwolves 2025 season outlook).
 
-<summary>
+
 
 - [Core Questions](#core-questions)
 - [Objectives](#objectives)
@@ -16,7 +16,7 @@
 - [Contributing](#contributing)
 - [License](#license)
 
-</summary>
+
 
 
 ---

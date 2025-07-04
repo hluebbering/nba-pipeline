@@ -1,0 +1,14 @@
+{
+  "name": "NBA Engine",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "micromamba create -f env.yml -n nba-engine && echo 'conda activate nba-engine' >> ~/.bashrc",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "charliermarsh.ruff"
+      ]
+    }
+  }
+}
