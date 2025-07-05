@@ -1,19 +1,15 @@
 {
   "name": "NBA Engine",
-
-  "features": {
-    "ghcr.io/devcontainers/features/miniconda:1": {
-      "version": "latest",
-      "activate_environment": "nba-engine",
-      "environment_file": "env.yml"
-    }
-  },
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
 
   "runArgs": [
     "-e", "GOOGLE_APPLICATION_CREDENTIALS=/workspaces/.gcp/key.json"
   ],
 
-  // ① Write the GCP key on each start
+  // Micromamba shell + env  ✅
+  "postCreateCommand": "micromamba shell init -s bash -y && micromamba create -f env.yml -n nba-engine && echo 'micromamba activate nba-engine' >> ~/.bashrc",
+
+  // write your service-account key each start  ✅
   "postStartCommand": "mkdir -p /workspaces/.gcp && echo \"$GCP_KEY_JSON\" > /workspaces/.gcp/key.json",
 
   "customizations": {
