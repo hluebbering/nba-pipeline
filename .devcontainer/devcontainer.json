@@ -1,7 +1,15 @@
 {
   "name": "NBA Engine",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
+
+  // ⬇️  Add these two lines at the same (root) level as image/name
+  "runArgs": [
+    "-e", "GOOGLE_APPLICATION_CREDENTIALS=/workspaces/.gcp/key.json"
+  ],
+  "postStartCommand": "mkdir -p /workspaces/.gcp && echo \"$GCP_KEY_JSON\" > /workspaces/.gcp/key.json",
+
   "postCreateCommand": "micromamba create -f env.yml -n nba-engine && echo 'conda activate nba-engine' >> ~/.bashrc",
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -12,3 +20,4 @@
     }
   }
 }
+
