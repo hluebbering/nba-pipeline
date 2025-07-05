@@ -8,7 +8,10 @@
   ],
   "postStartCommand": "mkdir -p /workspaces/.gcp && echo \"$GCP_KEY_JSON\" > /workspaces/.gcp/key.json",
 
-  "postCreateCommand": "micromamba create -f env.yml -n nba-engine && echo 'conda activate nba-engine' >> ~/.bashrc",
+  //"postCreateCommand": "micromamba create -f env.yml -n nba-engine && echo 'conda activate nba-engine' >> ~/.bashrc",
+
+  // 1️⃣  Create env + init shell + auto-activate with Micromamba
+  "postCreateCommand": "micromamba shell init -s bash -y && micromamba create -f env.yml -n nba-engine && echo 'micromamba activate nba-engine' >> ~/.bashrc",
 
   "customizations": {
     "vscode": {
@@ -20,4 +23,3 @@
     }
   }
 }
-
