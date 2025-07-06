@@ -7,6 +7,7 @@
   ],
   "postCreateCommand": "bash -c \"curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvJ -C /usr/local/bin --strip-components=1 bin/micromamba && micromamba shell init -s bash -y && micromamba create -y -f env.yml -n nba-engine && echo 'micromamba activate nba-engine' >> ~/.bashrc\"",
   "postStartCommand": "bash -c \"mkdir -p /workspaces/.gcp && echo \\\"$GCP_KEY_JSON\\\" > /workspaces/.gcp/key.json\"",
+  
   "customizations": {
     "vscode": {
       "extensions": [
