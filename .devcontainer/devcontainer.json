@@ -1,9 +1,9 @@
 {
   "name": "NBA Engine",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
+
   "runArgs": [
-    "-e",
-    "GOOGLE_APPLICATION_CREDENTIALS=/workspaces/.gcp/key.json"
+    "-e", "GOOGLE_APPLICATION_CREDENTIALS=/workspaces/.gcp/key.json"
   ],
   // "postCreateCommand": [
   //   "curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvjf - -C /usr/local/bin --strip-components=1 bin/micromamba &&",
@@ -12,11 +12,7 @@
   //   "echo 'micromamba activate nba-engine`"
   // ],
 
-  "postCreateCommand": "bash -c \"\
-curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvjf - -C /usr/local/bin --strip-components=1 bin/micromamba && \
-micromamba shell init -s bash -y && \
-micromamba create -y -f env.yml -n nba-engine && \
-echo 'micromamba activate nba-engine' >> ~/.bashrc\"",
+  "postCreateCommand": "bash -c \"curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvjf - -C /usr/local/bin --strip-components=1 bin/micromamba && micromamba shell init -s bash -y && micromamba create -y -f env.yml -n nba-engine && echo 'micromamba activate nba-engine' >> ~/.bashrc\"",
 
   "postStartCommand": [
     "mkdir -p /workspaces/.gcp",
