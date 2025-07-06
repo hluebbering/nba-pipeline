@@ -2,19 +2,12 @@
   "name": "NBA Engine",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
 
-  "features": {
-    // ⬇️ NEW: pulls Micromamba + makes env for you
-    "ghcr.io/devcontainers/features/micromamba:1": {
-      "micromambaEnv": "nba-engine",
-      "environmentFile": "env.yml",
-      "initShell": "bash"
-    }
-  },
-
   "runArgs": [
     "-e", "GOOGLE_APPLICATION_CREDENTIALS=/workspaces/.gcp/key.json"
   ],
 
+  // ⬇️ install micromamba via curl, build env, auto-activate
+  "postCreateCommand": "curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba && sudo mv bin/micromamba /usr/local/bin/ && micromamba shell init -s bash -y && micromamba create -f env.yml -n nba-engine && echo 'micromamba activate nba-engine' >> ~/.bashrc",
   "postStartCommand": "mkdir -p /workspaces/.gcp && echo \"$GCP_KEY_JSON\" > /workspaces/.gcp/key.json",
 
   "customizations": {
