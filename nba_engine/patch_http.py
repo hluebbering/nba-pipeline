@@ -1,33 +1,39 @@
-# nba_engine/patch_http.py  ← full working example
-from nba_api.stats.library.http import NBAStatsHTTP   # ← note the .stats. path change
-import os
+# nba_engine/patch_http.py
+from nba_api.stats.library.http import NBAStatsHTTP   # correct import path
+import os, functools
 
-# ------------------------------------------------------------------
-# 1)  Make sure this line comes *before* the class; otherwise it
-#     isn't yet defined when we build PatchedHTTP.                   |
-# ------------------------------------------------------------------
-_BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})  # falls back to {}
+_BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})  # defined *first*
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Adds the headers that nba.com expects and (optionally) a proxy."""
+    """Adds nba.com headers and (optionally) a ScraperAPI proxy."""
+
     HEADERS = {
-        **_BASE_HEADERS,           # safe on every nba-api version
-        "Origin": "https://www.nba.com",
-        "Referer": "https://www.nba.com/",
-        "x-nba-stats-origin": "stats",
-        "x-nba-stats-token":  "true",
+        **_BASE_HEADERS,
+        "Origin":            "https://www.nba.com",
+        "Referer":           "https://www.nba.com/",
+        "x-nba-stats-origin":"stats",
+        "x-nba-stats-token": "true",
     }
 
-    def send_api_request(self, *a, **kw):
-        # ScraperAPI proxy (only if key present)
-        proxy_key = os.getenv("SCRAPERAPI_KEY")
-        if proxy_key:
-            kw["proxies"] = {"https": f"http://scraperapi:{proxy_key}@proxy-server.scraperapi.com:8001"}
-        # allow caller-provided timeout to pass straight through
-        return super().send_api_request(*a, **kw)
+    # --- helper ---------------------------------------------------
+    def _apply_proxy(self):
+        key = os.getenv("SCRAPERAPI_KEY")
+        if key:
+            self.get_session().proxies.update(
+                {"https": f"http://scraperapi:{key}@proxy-server.scraperapi.com:8001"}
+            )
 
-# ------------------------------------------------------------------
-# 2)  Monkey-patch nba_api so everything else picks up the new class.
-# ------------------------------------------------------------------
-import nba_api.stats.library.http as http_module
-http_module.NBAStatsHTTP = PatchedHTTP
+    # --- override -------------------------------------------------
+    def send_api_request(self, endpoint, params=None, headers=None, **kw):
+        """
+        Same signature nba-api expects; just tack on proxy + headers
+        before delegating to the parent implementation.
+        """
+        self._apply_proxy()
+        # merge our headers with any that the caller provided
+        hdrs = {**self.HEADERS, **(headers or {})}
+        return super().send_api_request(endpoint, params=params, headers=hdrs, **kw)
+
+# monkey-patch so the rest of nba-api uses it
+import nba_api.stats.library.http as _http_mod
+_http_mod.NBAStatsHTTP = PatchedHTTP
