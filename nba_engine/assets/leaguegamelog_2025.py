@@ -1,6 +1,6 @@
 from dagster import asset, Output
 from nba_api.stats.endpoints import LeagueGameLog
-from nba_api.library.http import NBAStatsHTTP
+from nba_api.stats.library.http import NBAStatsHTTP     # ← fix path
 from requests.adapters import HTTPAdapter, Retry
 import pandas as pd, requests
 from google.cloud import bigquery
