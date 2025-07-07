@@ -1,46 +1,37 @@
 # nba_engine/patch_http.py
-from nba_api.stats.library.http import NBAStatsHTTP
 import os
+import warnings
+from urllib.parse import urlencode, quote
 
-_DEFAULT_HEADERS = {
-    "Origin":             "https://www.nba.com",
-    "Referer":            "https://www.nba.com/",
-    "x-nba-stats-origin": "stats",
-    "x-nba-stats-token":  "true",
-}
+from nba_api.library.http import NBAStatsHTTP         # ← correct path
+import nba_api.library.http as _http                  # for monkey-patch
+
+_BASE_URL = "https://api.scraperapi.com"
+_API_KEY  = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY"
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Adds required NBA headers and optional ScraperAPI proxy."""
-    HEADERS = {**getattr(NBAStatsHTTP, "HEADERS", {}), **_DEFAULT_HEADERS}
+    def send_api_request(self, endpoint, parameters, *a, **kw):
+        headers = {**self.HEADERS, **kw.pop("headers", {})}
 
-    def _apply_proxy(self):
-        key = os.getenv("SCRAPERAPI_KEY")
-        if key:                                   # only if user set .env
-            self.get_session().proxies.update(
-                {"https": f"http://scraperapi:{key}@proxy-server.scraperapi.com:8001"}
-            )
+        # build the original NBA URL exactly as nba_api would
+        nba_url   = f"{self.BASE_URL}/{endpoint}"
+        nba_query = urlencode(parameters or {})
+        target    = f"{nba_url}?{nba_query}"
 
-    # note: *parameters* (not params), keep the rest of the signature
-    def send_api_request(
-        self, endpoint, parameters, referer=None, proxy=None,
-        headers=None, timeout=30
-    ):
-        self._apply_proxy()
-        merged = {**self.HEADERS, **(headers or {})}
-
-        # ---- PATCH: disable SSL verification on this session ----
-        sess = self.get_session()
-        sess.verify = False                         # ← trust proxy cert
-        import warnings, urllib3
-        warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
-        # ---------------------------------------------------------
-
-        # call parent exactly as it expects
-        return super().send_api_request(
-            endpoint, parameters, referer=referer,
-            proxy=proxy, headers=merged, timeout=timeout
+        # wrap through ScraperAPI
+        wrapped = (
+            f"{_BASE_URL}/?api_key={_API_KEY}&render=true&url={quote(target)}"
         )
 
-# Monkey-patch nba_api globally
-import nba_api.stats.library.http as _http
-_http.NBAStatsHTTP = PatchedHTTP       # ← one-liner patch
+        sess = self.get_session()
+        sess.verify = False                           # ignore bad certs
+        warnings.filterwarnings(
+            "ignore",
+            message="Unverified HTTPS request",       # silence urllib3 warn
+        )
+
+        timeout = kw.get("timeout", 30)
+        return sess.get(wrapped, headers=headers, timeout=timeout)
+
+# 🔑  make EVERY nba_api endpoint see the patched class
+_http.NBAStatsHTTP = PatchedHTTP
