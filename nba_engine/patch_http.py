@@ -3,7 +3,6 @@ Monkey-patch nba_api to route through RapidAPI (or ScraperAPI) &
 add exponential back-off so Dagster stops bombing on timeouts.
 """
 import os, backoff, requests
-from nba_api.stats.library.http import NBAStatsHTTP  # new path
 
 RAPID = os.getenv("RAPIDAPI_KEY")
 SCRAPER = os.getenv("SCRAPERAPI_KEY")
@@ -19,10 +18,14 @@ def _proxied_url(url: str) -> str:
     return url  # fall back to direct hit
 
 
+from nba_api.stats.library.http import NBAStatsHTTP
+# grab whatever the base class exposes (old versions) ­– else fall back to {}
+BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})
+
+
 class PatchedHTTP(NBAStatsHTTP):
     HEADERS = {
-        **NBAStatsHTTP.HEADERS,
-        # mimic real browser to dodge Cloudflare
+        **_BASE_HEADERS,
         "Origin": "https://www.nba.com",
         "Referer": "https://www.nba.com/",
         "x-nba-stats-origin": "stats",
