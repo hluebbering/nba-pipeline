@@ -1,96 +1,43 @@
-"""
-Monkey-patch nba_api so every request to stats.nba.com is routed through
-ScraperAPI.  Handles *every* known nba_api version (old, new, broken, you name
-it) — no more HEADERS / BASE_URL surprises.
-"""
-from __future__ import annotations
+# scraper.py  (or inside your Dagster asset)
+import os, urllib.parse, requests, time, random
 
-import os
-import warnings
-from urllib.parse import urlencode, quote_plus
+SA_KEY = os.environ["SCRAPERAPI_KEY"]          # premium key
+NBA_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Referer": "https://stats.nba.com",
+    "Origin":  "https://www.nba.com",
+    "x-nba-stats-token":  "true",
+    "x-nba-stats-origin": "stats",
+}
 
-# ---------------------------------------------------------------------------
-# Locate the right module, class, and constants — no assumptions.
-# ---------------------------------------------------------------------------
-try:                                       # newest place
-    import nba_api.stats.library.http as _http
-except ModuleNotFoundError:                # old place
-    import nba_api.library.http as _http   # type: ignore
+def scrape_nba(endpoint: str, params: dict, retries: int = 3) -> dict:
+    """Call stats.nba.com via ScraperAPI-premium + header-forwarding."""
+    nba_url = f"https://stats.nba.com/stats/{endpoint}?{urllib.parse.urlencode(params)}"
 
-NBAStatsHTTP = getattr(_http, "NBAStatsHTTP", None)
-if NBAStatsHTTP is None:
-    raise ImportError("nba_api: cannot find NBAStatsHTTP")
-
-# HEADERS may sit on the *module* (very old) or the *class* (newer).
-_BASE_HEADERS = (
-    getattr(_http, "HEADERS", None)
-    or getattr(NBAStatsHTTP, "HEADERS", None)
-    or {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/125.0 Safari/537.36"
-        ),
-        "Accept": "application/json, text/plain, */*",
-        "Origin": "https://stats.nba.com",
-        "Referer": "https://stats.nba.com",
-        "x-nba-stats-origin": "stats",
-        "x-nba-stats-token": "true",
+    proxy_params = {
+        "api_key": SA_KEY,
+        "premium": "true",
+        "keep_headers": "true",
+        "country_code": "eu",          # EU exit works; switch / randomize if needed
+        "retry":        "3",
+        "timeout":      "90000",       # ms
+        "url": nba_url,
     }
-)
+    url = "https://api.scraperapi.com?" + urllib.parse.urlencode(proxy_params, safe=":/?&=")
 
-_BASE_URL = (
-    getattr(_http, "BASE_URL", None)
-    or getattr(NBAStatsHTTP, "BASE_URL", None)
-    or "https://stats.nba.com/stats"
-)
-
-# ---------------------------------------------------------------------------
-# ScraperAPI
-# ---------------------------------------------------------------------------
-_API_KEY = os.getenv("SCRAPERAPI_KEY")
-if not _API_KEY:
-    raise RuntimeError(
-        "SCRAPERAPI_KEY env-var missing — add it to .env or Codespace secrets."
-    )
-_SCRAPER = "https://api.scraperapi.com"
-
-# ---------------------------------------------------------------------------
-# Patched class
-# ---------------------------------------------------------------------------
-class PatchedHTTP(NBAStatsHTTP):  # type: ignore[misc]
-    """Replace nba_api’s HTTP layer with a ScraperAPI proxy."""
-
-    def send_api_request(          # noqa: D401  (we’re copying nba_api’s sig)
-        self,
-        endpoint: str,
-        parameters: dict | None = None,
-        headers: dict | None = None,
-        **kw,
-    ):
-        # 1️⃣ Build the *real* stats.nba.com URL
-        real_qs  = urlencode(parameters or {})
-        target   = f"{_BASE_URL}/{endpoint}?{real_qs}"
-
-        # 2️⃣ Wrap through ScraperAPI
-        proxied  = (
-            f"{_SCRAPER}/?api_key={_API_KEY}&render=true"
-            f"&country_code=us&url={quote_plus(target)}"
-        )
-
-        merged   = {**_BASE_HEADERS, **(headers or {})}
-
-        sess = self.get_session()
-        sess.verify = False                     # Codespaces CA chain is flaky
-        warnings.filterwarnings(
-            "ignore", message="Unverified HTTPS request"
-        )
-
-        timeout = kw.pop("timeout", 90)
-        return sess.get(proxied, headers=merged, timeout=timeout, **kw)
-
-
-# ---------------------------------------------------------------------------
-# Activate patch globally
-# ---------------------------------------------------------------------------
-_http.NBAStatsHTTP = PatchedHTTP
+    last_exc = None
+    for _ in range(retries):
+        try:
+            r = requests.get(url, headers=NBA_HEADERS, timeout=120)
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code in {403, 504, 429, 500}:
+                # throw to retry; let ScraperAPI rotate proxy
+                raise RuntimeError(f"ScraperAPI {r.status_code}")
+        except Exception as exc:
+            last_exc = exc
+            time.sleep(random.uniform(1.1, 2.5))   # jitter to dodge ban waves
+    raise last_exc or RuntimeError("Unreachable")
