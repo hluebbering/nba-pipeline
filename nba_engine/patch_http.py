@@ -27,6 +27,14 @@ class PatchedHTTP(NBAStatsHTTP):
     ):
         self._apply_proxy()
         merged = {**self.HEADERS, **(headers or {})}
+
+        # ---- PATCH: disable SSL verification on this session ----
+        sess = self.get_session()
+        sess.verify = False                         # ← trust proxy cert
+        import warnings, urllib3
+        warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
+        # ---------------------------------------------------------
+
         # call parent exactly as it expects
         return super().send_api_request(
             endpoint, parameters, referer=referer,
