@@ -1,43 +1,65 @@
-# scraper.py  (or inside your Dagster asset)
-import os, urllib.parse, requests, time, random
+# nba_engine/patch_http.py
+"""
+Route every nba_api request through ScraperAPI.
 
-SA_KEY = os.environ["SCRAPERAPI_KEY"]          # premium key
-NBA_HEADERS = {
+IMPORT **BEFORE** any nba_api.endpoint is imported.
+"""
+
+from __future__ import annotations
+import os, requests
+from urllib.parse import urlencode, quote
+
+# ──────────────────── config
+_API_KEY = os.getenv("SCRAPERAPI_KEY")
+if not _API_KEY or _API_KEY == "your_real_key":
+    raise RuntimeError("Set SCRAPERAPI_KEY (export or .env) with a real key")
+
+_STATS   = "https://stats.nba.com"
+_SCRAPER = "https://api.scraperapi.com"
+
+# Minimum headers NBA gateway insists on
+_HDRS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
     ),
     "Referer": "https://stats.nba.com",
-    "Origin":  "https://www.nba.com",
-    "x-nba-stats-token":  "true",
+    "Origin":  "https://stats.nba.com",
+    "Accept":  "application/json, text/plain, */*",
     "x-nba-stats-origin": "stats",
+    "x-nba-stats-token":  "true",
 }
 
-def scrape_nba(endpoint: str, params: dict, retries: int = 3) -> dict:
-    """Call stats.nba.com via ScraperAPI-premium + header-forwarding."""
-    nba_url = f"https://stats.nba.com/stats/{endpoint}?{urllib.parse.urlencode(params)}"
+def _send_via_scraper(self, endpoint, parameters=None, *_, timeout=30, **__):
+    # build native NBA URL
+    qs   = urlencode(parameters or {}, doseq=True)
+    tgt  = f"{_STATS}/stats/{endpoint}?{qs}"
 
-    proxy_params = {
-        "api_key": SA_KEY,
-        "premium": "true",
-        "keep_headers": "true",
-        "country_code": "eu",          # EU exit works; switch / randomize if needed
-        "retry":        "3",
-        "timeout":      "90000",       # ms
-        "url": nba_url,
-    }
-    url = "https://api.scraperapi.com?" + urllib.parse.urlencode(proxy_params, safe=":/?&=")
+    # wrap through ScraperAPI
+    proxy = (
+        f"{_SCRAPER}"
+        f"?api_key={_API_KEY}"
+        "&premium=true"             # <-- use paid pool (needs at least “Starter” plan)
+        "&country_code=de"
+        #"&country_code=us"
+        "&keep_headers=true"
+        "&render=false"               # we only need raw JSON
+        f"&url={quote(tgt, safe='')}"
+    )
 
-    last_exc = None
-    for _ in range(retries):
-        try:
-            r = requests.get(url, headers=NBA_HEADERS, timeout=120)
-            if r.status_code == 200:
-                return r.json()
-            if r.status_code in {403, 504, 429, 500}:
-                # throw to retry; let ScraperAPI rotate proxy
-                raise RuntimeError(f"ScraperAPI {r.status_code}")
-        except Exception as exc:
-            last_exc = exc
-            time.sleep(random.uniform(1.1, 2.5))   # jitter to dodge ban waves
-    raise last_exc or RuntimeError("Unreachable")
+    r = requests.get(proxy, headers=_HDRS, timeout=timeout, verify=False)
+    r.raise_for_status()
+    return r
+
+def _install():
+    import nba_api.library.http as core
+    core.NBAHTTP.send_api_request = _send_via_scraper
+    try:
+        import nba_api.stats.library.http as stats
+        stats.NBAStatsHTTP.send_api_request = _send_via_scraper
+    except ModuleNotFoundError:
+        pass
+
+_install()
+print("✅  patch_http active – nba_api now pipes through ScraperAPI")
