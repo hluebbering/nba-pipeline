@@ -1,39 +1,49 @@
-# nba_engine/patch_http.py   ❶ FIXED import paths
-import os, warnings
+# nba_engine/patch_http.py
+"""
+Proxy every stats.nba.com request through ScraperAPI so that dagster
+executions inside GitHub Codespaces (or other locked-down networks)
+can still reach the NBA Stats API.
+"""
+import os
+import warnings
 from urllib.parse import urlencode, quote_plus
 
-import nba_api.library.http as _http          # ← right module
-from nba_api.library.http import NBAStatsHTTP # ← base class
+import nba_api.stats.library.http as _http          # ✅ correct module
+from nba_api.stats.library.http import NBAStatsHTTP # ✅ base class
 
-_SCRAPER = "https://api.scraperapi.com"
-_API_KEY = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY_HERE"
-
-BASE_HEADERS = _http.HEADERS                  # ← constant now exists ✅
+_SCRAPER   = "https://api.scraperapi.com"
+_API_KEY   = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY_HERE"
+_BASE_HDRS = _http.HEADERS                          # module-level constant
 
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Proxy every nba.com/stats request through ScraperAPI."""
-    def send_api_request(self, endpoint, parameters, headers=None, **kw):
-        merged = {**BASE_HEADERS, **(headers or {})}
+    """Override `.send_api_request()` to wrap the URL in ScraperAPI."""
+    def send_api_request(self, endpoint, parameters=None, headers=None, **kw):
+        # headers the endpoints expect
+        merged = {**_BASE_HDRS, **(headers or {})}
 
-        # build the original stats.nba.com URL
+        # 1️⃣ the normal (unproxied) NBA-Stats URL
         nba_url   = f"{self.BASE_URL}/{endpoint}"
-        target    = f"{nba_url}?{urlencode(parameters or {})}"
+        query     = urlencode(parameters or {})
+        target    = f"{nba_url}?{query}"
 
-        # wrap with ScraperAPI
-        wrapped = (
+        # 2️⃣ wrap it through ScraperAPI
+        wrapped   = (
             f"{_SCRAPER}/?api_key={_API_KEY}"
-            f"&render=true&url={quote_plus(target)}"
+            f"&render=true&country_code=us"
+            f"&url={quote_plus(target)}"
         )
 
+        # ScraperAPI’s cert chain sometimes fails inside Codespaces
         sess = self.get_session()
-        sess.verify = False          # ignore local-cert chain in Codespaces
+        sess.verify = False
         warnings.filterwarnings(
             "ignore", message="Unverified HTTPS request"
         )
 
-        return sess.get(wrapped, headers=merged, timeout=kw.get("timeout", 30))
+        timeout = kw.pop("timeout", 30)
+        return sess.get(wrapped, headers=merged, timeout=timeout, **kw)
 
 
-# monkey-patch the symbol every endpoint references
+# Monkey-patch so every future import gets our version
 _http.NBAStatsHTTP = PatchedHTTP
