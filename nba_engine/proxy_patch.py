@@ -3,7 +3,7 @@ Monkey-patch nba_api so every request is wrapped by ScraperAPI.
 Import this at package init *before* any endpoint call.
 """
 import os, urllib.parse as up
-from nba_api.library.http import NBAStatsHTTP
+from nba_api.stats.library.http import NBAStatsHTTP   # ← new path
 
 class ProxiedHTTP(NBAStatsHTTP):
     def send_api_request(self, endpoint, params, **kwargs):
