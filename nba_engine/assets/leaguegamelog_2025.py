@@ -1,19 +1,38 @@
+# nba_engine/assets/leaguegamelog_2025.py
 from dagster import asset, Output
-from nba_api.stats.endpoints import LeagueGameLog
-from nba_api.stats.library.http import NBAStatsHTTP     # ← fix path
-from requests.adapters import HTTPAdapter, Retry
-import pandas as pd, requests
-from google.cloud import bigquery
+import pandas as pd
 
-# 1️⃣ headers & retry
-NBAStatsHTTP.return_response_headers = {
-    "User-Agent": "Mozilla/5.0",
-    "Referer": "https://stats.nba.com",
-    "Origin": "https://stats.nba.com",
-}
+# --- NEW: hardened HTTP session ---------------------------------
+from nba_api.stats.library.http import NBAStatsHTTP          # correct path
+import requests
+from requests.adapters import HTTPAdapter, Retry
+
 sess = requests.Session()
-sess.mount("https://", HTTPAdapter(max_retries=Retry(total=5, backoff_factor=1)))
-NBAStatsHTTP._session = sess
+sess.headers.update(        # mimic real browser
+    {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/126.0 Safari/537.36"
+        ),
+        "Referer": "https://stats.nba.com",
+        "Origin": "https://stats.nba.com",
+    }
+)
+# 5 retries, exponential back-off
+sess.mount(
+    "https://",
+    HTTPAdapter(
+        max_retries=Retry(
+            total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
+        )
+    ),
+)
+NBAStatsHTTP._session = sess        # monkey-patch the api client
+# ----------------------------------------------------------------
+
+from nba_api.stats.endpoints import LeagueGameLog
+
 
 @asset(key_prefix=["raw"])
 def leaguegamelog_2025() -> Output[pd.DataFrame]:
@@ -30,15 +49,3 @@ def leaguegamelog_2025() -> Output[pd.DataFrame]:
 
     yield Output(df, metadata={"rows": len(df)})
     return Output(df, metadata={"rows": len(df)})
-
-
-
-# Load data into BigQuery
-# bq = bigquery.Client()
-# table_id = "nba_raw.games"
-# job_config = bigquery.LoadJobConfig(
-#     write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
-# )
-# load_job = bq.load_table_from_dataframe(df, table_id, job_config=job_config)
-# load_job.result()  # Wait for the job to complete
-
