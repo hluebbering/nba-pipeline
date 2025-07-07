@@ -1,9 +1,12 @@
 # nba_engine/__init__.py
-import nba_engine.patch_http
 from dotenv import load_dotenv; load_dotenv()
-import nba_engine.proxy_patch  # ← must be first
-from dagster import Definitions
-from nba_engine.assets.leaguegamelog_2025 import leaguegamelog_2025  # object, not module!
 
-# hand Dagster the real asset objects
-defs = Definitions(assets=[leaguegamelog_2025])
+import nba_engine.patch_http          # keeps the scraper helper registered
+import nba_engine.proxy_patch         # if you still need it elsewhere
+
+# ✅ import the partitioned asset we just created
+from nba_engine.assets.leaguegamelog import leaguegamelog
+
+from dagster import Definitions
+
+defs = Definitions(assets=[leaguegamelog])
