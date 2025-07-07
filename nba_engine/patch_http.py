@@ -91,7 +91,7 @@ def nba_get(endpoint: str, params: Mapping[str, Any]) -> dict[str, Any]:
         "api_key": SA_KEY,
         "premium": "true",
         "keep_headers": "true",
-        "country_code": random.choice(SA_COUNTRY_POOL),
+        "country_code": "eu",
         "retry": str(SA_RETRIES),
         "timeout": str(SA_TIMEOUT_MS),
         "url": nba_url,
