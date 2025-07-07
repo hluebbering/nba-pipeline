@@ -3,7 +3,7 @@ import os
 import warnings
 from urllib.parse import urlencode, quote
 
-from nba_api.library.http import NBAStatsHTTP         # ← correct path
+from nba_api.stats.library.http import NBAStatsHTTP
 import nba_api.library.http as _http                  # for monkey-patch
 
 _BASE_URL = "https://api.scraperapi.com"
