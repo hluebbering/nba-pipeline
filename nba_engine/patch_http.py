@@ -1,34 +1,27 @@
 """
-Monkey-patch nba_api so every stats.nba.com call is proxied through ScraperAPI.
-
-Works with *old* and *new* releases of `nba_api`, even if the   HEADERS
-constant moved (or disappeared entirely).
+Monkey-patch nba_api so every request to stats.nba.com is routed through
+ScraperAPI.  Handles *every* known nba_api version (old, new, broken, you name
+it) — no more HEADERS / BASE_URL surprises.
 """
-
 from __future__ import annotations
 
 import os
 import warnings
 from urllib.parse import urlencode, quote_plus
 
-# --------------------------------------------------------------------------- #
-# Locate the base HTTP class *and* the default request headers ― regardless of
-# which nba_api version is installed.
-# --------------------------------------------------------------------------- #
-try:
-    # Newer path
+# ---------------------------------------------------------------------------
+# Locate the right module, class, and constants — no assumptions.
+# ---------------------------------------------------------------------------
+try:                                       # newest place
     import nba_api.stats.library.http as _http
-except ModuleNotFoundError:
-    # Older path
-    import nba_api.library.http as _http
+except ModuleNotFoundError:                # old place
+    import nba_api.library.http as _http   # type: ignore
 
-# The HTTP base class we need to subclass
 NBAStatsHTTP = getattr(_http, "NBAStatsHTTP", None)
 if NBAStatsHTTP is None:
-    raise ImportError("Could not find NBAStatsHTTP in nba_api")
+    raise ImportError("nba_api: cannot find NBAStatsHTTP")
 
-# Default headers live either on the module (old) or on the class (new).  If
-# neither exists, fall back to a hard-coded UA that the NBA site accepts.
+# HEADERS may sit on the *module* (very old) or the *class* (newer).
 _BASE_HEADERS = (
     getattr(_http, "HEADERS", None)
     or getattr(NBAStatsHTTP, "HEADERS", None)
@@ -41,60 +34,63 @@ _BASE_HEADERS = (
         "Accept": "application/json, text/plain, */*",
         "Origin": "https://stats.nba.com",
         "Referer": "https://stats.nba.com",
-        "x-nba-stats-token": "true",
         "x-nba-stats-origin": "stats",
+        "x-nba-stats-token": "true",
     }
 )
 
-# --------------------------------------------------------------------------- #
-# ScraperAPI configuration
-# --------------------------------------------------------------------------- #
-_SCRAPER_URL = "https://api.scraperapi.com"
-_API_KEY = os.environ.get("SCRAPERAPI_KEY")
+_BASE_URL = (
+    getattr(_http, "BASE_URL", None)
+    or getattr(NBAStatsHTTP, "BASE_URL", None)
+    or "https://stats.nba.com/stats"
+)
+
+# ---------------------------------------------------------------------------
+# ScraperAPI
+# ---------------------------------------------------------------------------
+_API_KEY = os.getenv("SCRAPERAPI_KEY")
 if not _API_KEY:
     raise RuntimeError(
-        "SCRAPERAPI_KEY environment variable is missing.  "
-        "Add it to .env or your Codespace secrets."
+        "SCRAPERAPI_KEY env-var missing — add it to .env or Codespace secrets."
     )
+_SCRAPER = "https://api.scraperapi.com"
 
-# --------------------------------------------------------------------------- #
-# The patched class
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+# Patched class
+# ---------------------------------------------------------------------------
 class PatchedHTTP(NBAStatsHTTP):  # type: ignore[misc]
-    """Route nba_api traffic through ScraperAPI (handles HTTPS + cert issues)."""
+    """Replace nba_api’s HTTP layer with a ScraperAPI proxy."""
 
-    def send_api_request(
+    def send_api_request(          # noqa: D401  (we’re copying nba_api’s sig)
         self,
         endpoint: str,
         parameters: dict | None = None,
         headers: dict | None = None,
         **kw,
     ):
-        # Compose the real NBA-stats URL first
-        nba_url = f"{self.BASE_URL}/{endpoint}"
-        nba_qs  = urlencode(parameters or {})
-        target  = f"{nba_url}?{nba_qs}"
+        # 1️⃣ Build the *real* stats.nba.com URL
+        real_qs  = urlencode(parameters or {})
+        target   = f"{_BASE_URL}/{endpoint}?{real_qs}"
 
-        # Wrap with ScraperAPI
-        proxied = (
-            f"{_SCRAPER_URL}/?api_key={_API_KEY}"
-            f"&render=true&country_code=us&url={quote_plus(target)}"
+        # 2️⃣ Wrap through ScraperAPI
+        proxied  = (
+            f"{_SCRAPER}/?api_key={_API_KEY}&render=true"
+            f"&country_code=us&url={quote_plus(target)}"
         )
 
-        merged_headers = {**_BASE_HEADERS, **(headers or {})}
+        merged   = {**_BASE_HEADERS, **(headers or {})}
 
         sess = self.get_session()
-        sess.verify = False                       # Codespaces often lack root CA
+        sess.verify = False                     # Codespaces CA chain is flaky
         warnings.filterwarnings(
             "ignore", message="Unverified HTTPS request"
         )
 
         timeout = kw.pop("timeout", 90)
-        # Any **kw left (cookies, allow_redirects, etc.) still get passed through
-        return sess.get(proxied, headers=merged_headers, timeout=timeout, **kw)
+        return sess.get(proxied, headers=merged, timeout=timeout, **kw)
 
 
-# --------------------------------------------------------------------------- #
-# Monkey-patch nba_api so every subsequent import uses our class
-# --------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------
+# Activate patch globally
+# ---------------------------------------------------------------------------
 _http.NBAStatsHTTP = PatchedHTTP
