@@ -1,7 +1,7 @@
 # nba_engine/__init__.py
 from dagster import Definitions
-# 1️⃣  import the ASSET OBJECT, not the module
-from .assets.leaguegamelog_2025 import leaguegamelog_2025
+from nba_engine.assets.leaguegamelog_2025 import leaguegamelog_2025  # object, not module!
 
-# 2️⃣  hand the object to Dagster
-defs = Definitions(assets=[leaguegamelog_2025])
+defs = Definitions(
+    assets=[leaguegamelog_2025],   # hand Dagster the real asset objects
+)
