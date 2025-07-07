@@ -6,5 +6,5 @@ from . import assets              # nba_engine/assets/__init__.py can be empty
 from .assets import leaguegamelog_2025  # ensures the file is imported
 
 defs = Definitions(
-    assets=load_assets_from_modules([assets]),
+    assets=load_assets_from_modules([leaguegamelog_2025]),
 )
