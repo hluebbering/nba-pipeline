@@ -1,47 +1,33 @@
-"""
-Monkey-patch nba_api to route through RapidAPI (or ScraperAPI) &
-add exponential back-off so Dagster stops bombing on timeouts.
-"""
-import os, backoff, requests
+# nba_engine/patch_http.py  ← full working example
+from nba_api.stats.library.http import NBAStatsHTTP   # ← note the .stats. path change
+import os
 
-RAPID = os.getenv("RAPIDAPI_KEY")
-SCRAPER = os.getenv("SCRAPERAPI_KEY")
-
-def _proxied_url(url: str) -> str:
-    if RAPID:
-        return (
-            "https://rapidapi.p.rapidapi.com/?"        # RapidAPI NBA-Stats proxy
-            f"rapidapi-key={RAPID}&url={url}"
-        )
-    if SCRAPER:
-        return f"http://api.scraperapi.com/?key={SCRAPER}&url={url}"
-    return url  # fall back to direct hit
-
-
-from nba_api.stats.library.http import NBAStatsHTTP
-# grab whatever the base class exposes (old versions) ­– else fall back to {}
-BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})
-
+# ------------------------------------------------------------------
+# 1)  Make sure this line comes *before* the class; otherwise it
+#     isn't yet defined when we build PatchedHTTP.                   |
+# ------------------------------------------------------------------
+_BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})  # falls back to {}
 
 class PatchedHTTP(NBAStatsHTTP):
+    """Adds the headers that nba.com expects and (optionally) a proxy."""
     HEADERS = {
-        **_BASE_HEADERS,
+        **_BASE_HEADERS,           # safe on every nba-api version
         "Origin": "https://www.nba.com",
         "Referer": "https://www.nba.com/",
         "x-nba-stats-origin": "stats",
-        "x-nba-stats-token": "true",
+        "x-nba-stats-token":  "true",
     }
 
-    @backoff.on_exception(backoff.expo,
-                          (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError),
-                          max_time=300)
-    def send_api_request(self, endpoint: str, params: dict, **kwargs):
-        url = self.BASE_URL + endpoint
-        url = _proxied_url(url)
-        kwargs.setdefault("timeout", 30)
-        return requests.get(url, headers=self.HEADERS, params=params, **kwargs)
+    def send_api_request(self, *a, **kw):
+        # ScraperAPI proxy (only if key present)
+        proxy_key = os.getenv("SCRAPERAPI_KEY")
+        if proxy_key:
+            kw["proxies"] = {"https": f"http://scraperapi:{proxy_key}@proxy-server.scraperapi.com:8001"}
+        # allow caller-provided timeout to pass straight through
+        return super().send_api_request(*a, **kw)
 
-
-# ⬇️ install the monkey-patch **before** anything imports nba_api endpoints
-import nba_api.stats.library.http
-nba_api.stats.library.http.NBAStatsHTTP = PatchedHTTP
+# ------------------------------------------------------------------
+# 2)  Monkey-patch nba_api so everything else picks up the new class.
+# ------------------------------------------------------------------
+import nba_api.stats.library.http as http_module
+http_module.NBAStatsHTTP = PatchedHTTP
