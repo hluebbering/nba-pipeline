@@ -1,11 +1,11 @@
 # nba_engine/assets/leaguegamelog_2025.py
 from dagster import asset, Output
+# from nba_api.stats.endpoints import LeagueGameLog
 import pandas as pd
-
-# --- NEW: hardened HTTP session ---------------------------------
-from nba_api.stats.library.http import NBAStatsHTTP          # correct path
 import requests
+from nba_api.stats.library.http import NBAStatsHTTP
 from requests.adapters import HTTPAdapter, Retry
+from google.cloud import bigquery
 
 sess = requests.Session()
 sess.headers.update(        # mimic real browser
@@ -48,4 +48,4 @@ def leaguegamelog_2025() -> Output[pd.DataFrame]:
     ).result()
 
     yield Output(df, metadata={"rows": len(df)})
-    return Output(df, metadata={"rows": len(df)})
+#    return Output(df, metadata={"rows": len(df)})
