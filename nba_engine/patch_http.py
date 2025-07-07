@@ -1,38 +1,41 @@
 # nba_engine/patch_http.py
 import os, warnings
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode, quote_plus
 
-# 👉 import the SAME module the endpoints use
-import nba_api.stats.library.http as _http
-from nba_api.stats.library.http import NBAStatsHTTP         
+import nba_api.stats.library.http as _http          # ← exact module used upstream
+from nba_api.stats.library.http import NBAStatsHTTP  # base class
 
-_SCRAPER   = "https://api.scraperapi.com"
-_API_KEY   = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY_HERE"
+_SCRAPER = "https://api.scraperapi.com"
+_API_KEY = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY_HERE"
+
+BASE_HEADERS = _http.HEADERS                        # <- module-level constant ✅
+
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Wrap every nba_api request through ScraperAPI."""
-    def send_api_request(self, endpoint, parameters, *a, **kw):
-        headers = {**self.HEADERS, **kw.pop("headers", {})}
+    """Proxy every NBA-stats call through ScraperAPI."""
+    def send_api_request(self, endpoint, parameters, headers=None, **kw):
+        # merge custom headers with the library’s defaults
+        merged = {**BASE_HEADERS, **(headers or {})}
 
-        # build original NBA stats URL
+        # 1️⃣  compose the regular nba.com/stats URL
         nba_url   = f"{self.BASE_URL}/{endpoint}"
         nba_query = urlencode(parameters or {})
         target    = f"{nba_url}?{nba_query}"
 
-        # wrap via proxy
+        # 2️⃣  wrap it for ScraperAPI
         wrapped = (
             f"{_SCRAPER}/?api_key={_API_KEY}"
-            f"&render=true&url={quote(target)}"
+            f"&render=true&url={quote_plus(target)}"
         )
 
         sess = self.get_session()
-        sess.verify = False                           # ignore cert issues
+        sess.verify = False                           # ignore local-cert issues
         warnings.filterwarnings(
             "ignore", message="Unverified HTTPS request"
         )
 
-        timeout = kw.get("timeout", 30)
-        return sess.get(wrapped, headers=headers, timeout=timeout)
+        return sess.get(wrapped, headers=merged, timeout=kw.get("timeout", 30))
 
-# 💥  THIS is the critical line — replace the class globally
+
+# 🔥  Monkey-patch *the exact symbol* every endpoint imports
 _http.NBAStatsHTTP = PatchedHTTP
