@@ -1,39 +1,38 @@
 # nba_engine/patch_http.py
-from nba_api.stats.library.http import NBAStatsHTTP   # correct import path
-import os, functools
+from nba_api.stats.library.http import NBAStatsHTTP
+import os
 
-_BASE_HEADERS = getattr(NBAStatsHTTP, "HEADERS", {})  # defined *first*
+_DEFAULT_HEADERS = {
+    "Origin":             "https://www.nba.com",
+    "Referer":            "https://www.nba.com/",
+    "x-nba-stats-origin": "stats",
+    "x-nba-stats-token":  "true",
+}
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Adds nba.com headers and (optionally) a ScraperAPI proxy."""
+    """Adds required NBA headers and optional ScraperAPI proxy."""
+    HEADERS = {**getattr(NBAStatsHTTP, "HEADERS", {}), **_DEFAULT_HEADERS}
 
-    HEADERS = {
-        **_BASE_HEADERS,
-        "Origin":            "https://www.nba.com",
-        "Referer":           "https://www.nba.com/",
-        "x-nba-stats-origin":"stats",
-        "x-nba-stats-token": "true",
-    }
-
-    # --- helper ---------------------------------------------------
     def _apply_proxy(self):
         key = os.getenv("SCRAPERAPI_KEY")
-        if key:
+        if key:                                   # only if user set .env
             self.get_session().proxies.update(
                 {"https": f"http://scraperapi:{key}@proxy-server.scraperapi.com:8001"}
             )
 
-    # --- override -------------------------------------------------
-    def send_api_request(self, endpoint, params=None, headers=None, **kw):
-        """
-        Same signature nba-api expects; just tack on proxy + headers
-        before delegating to the parent implementation.
-        """
+    # note: *parameters* (not params), keep the rest of the signature
+    def send_api_request(
+        self, endpoint, parameters, referer=None, proxy=None,
+        headers=None, timeout=30
+    ):
         self._apply_proxy()
-        # merge our headers with any that the caller provided
-        hdrs = {**self.HEADERS, **(headers or {})}
-        return super().send_api_request(endpoint, params=params, headers=hdrs, **kw)
+        merged = {**self.HEADERS, **(headers or {})}
+        # call parent exactly as it expects
+        return super().send_api_request(
+            endpoint, parameters, referer=referer,
+            proxy=proxy, headers=merged, timeout=timeout
+        )
 
-# monkey-patch so the rest of nba-api uses it
-import nba_api.stats.library.http as _http_mod
-_http_mod.NBAStatsHTTP = PatchedHTTP
+# Monkey-patch nba_api globally
+import nba_api.stats.library.http as _http
+_http.NBAStatsHTTP = PatchedHTTP       # ← one-liner patch
