@@ -1,35 +1,33 @@
-# nba_engine/patch_http.py
+# nba_engine/patch_http.py   ❶ FIXED import paths
 import os, warnings
 from urllib.parse import urlencode, quote_plus
 
-import nba_api.stats.library.http as _http          # ← exact module used upstream
-from nba_api.stats.library.http import NBAStatsHTTP  # base class
+import nba_api.library.http as _http          # ← right module
+from nba_api.library.http import NBAStatsHTTP # ← base class
 
 _SCRAPER = "https://api.scraperapi.com"
 _API_KEY = os.getenv("SCRAPERAPI_KEY") or "YOUR_KEY_HERE"
 
-BASE_HEADERS = _http.HEADERS                        # <- module-level constant ✅
+BASE_HEADERS = _http.HEADERS                  # ← constant now exists ✅
 
 
 class PatchedHTTP(NBAStatsHTTP):
-    """Proxy every NBA-stats call through ScraperAPI."""
+    """Proxy every nba.com/stats request through ScraperAPI."""
     def send_api_request(self, endpoint, parameters, headers=None, **kw):
-        # merge custom headers with the library’s defaults
         merged = {**BASE_HEADERS, **(headers or {})}
 
-        # 1️⃣  compose the regular nba.com/stats URL
+        # build the original stats.nba.com URL
         nba_url   = f"{self.BASE_URL}/{endpoint}"
-        nba_query = urlencode(parameters or {})
-        target    = f"{nba_url}?{nba_query}"
+        target    = f"{nba_url}?{urlencode(parameters or {})}"
 
-        # 2️⃣  wrap it for ScraperAPI
+        # wrap with ScraperAPI
         wrapped = (
             f"{_SCRAPER}/?api_key={_API_KEY}"
             f"&render=true&url={quote_plus(target)}"
         )
 
         sess = self.get_session()
-        sess.verify = False                           # ignore local-cert issues
+        sess.verify = False          # ignore local-cert chain in Codespaces
         warnings.filterwarnings(
             "ignore", message="Unverified HTTPS request"
         )
@@ -37,5 +35,5 @@ class PatchedHTTP(NBAStatsHTTP):
         return sess.get(wrapped, headers=merged, timeout=kw.get("timeout", 30))
 
 
-# 🔥  Monkey-patch *the exact symbol* every endpoint imports
+# monkey-patch the symbol every endpoint references
 _http.NBAStatsHTTP = PatchedHTTP
