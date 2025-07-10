@@ -1,0 +1,3 @@
+#!/usr/bin/env python
+from nba_engine.ingestion.injuries import load
+load()
