@@ -1,22 +1,41 @@
 """
-Pull current NBA injury statuses from ESPN and append to BigQuery.
-Table: <PROJECT>.<DATASET>.stg_injury_updates
+Injury scraper  ▸  pulls ESPN's team pages → appends to BigQuery table
 """
 
-import os, re, datetime as dt, pandas as pd, requests
+import datetime as dt
+import os
+import re
+
+import pandas as pd
+import requests
 from google.cloud import bigquery
 
+# ----------------------------------------------------------------------
+# CONFIGURATION  – change these two lines for your own project / dataset
+# ----------------------------------------------------------------------
 ESPN_URL = "https://www.espn.com/nba/injuries"
-BQ_TABLE = os.getenv("BQ_INJURY_TABLE", "myproj.nba_raw.stg_injury_updates")
+BQ_TABLE = os.getenv("BQ_INJURY_TABLE",
+                     "myproject.nba_raw.stg_injury_updates")
+# ----------------------------------------------------------------------
+
 
 def _scrape() -> pd.DataFrame:
-    # ESPN prints one HTML table per team
-    tables = pd.read_html(ESPN_URL)          # columns: NAME | POS | EST. RETURN | STATUS | COMMENT
+    """
+    Returns one DataFrame with columns:
+    player | pos | est_return | status | comment | team | scraped_at
+    """
+    tables = pd.read_html(ESPN_URL)       # one HTML table per team
     frames = []
+
     for raw in tables:
-        if "COMMENT" not in raw.columns:     # skip ad junk
+        # Real injury tables always have a COMMENT column
+        if "COMMENT" not in raw.columns:
             continue
-        team = re.sub(r" Injuries.*", "", raw.columns[0])   # header holds "Golden State Warriors Injuries"
+
+        # Header of the table looks like "Golden State Warriors Injuries"
+        team_header = raw.columns[0]
+        team = re.sub(r"\s+Injuries.*$", "", team_header).strip()
+
         df = raw.rename(columns={
             "NAME": "player",
             "POS": "pos",
@@ -28,18 +47,26 @@ def _scrape() -> pd.DataFrame:
         frames.append(df)
 
     if not frames:
-        raise RuntimeError("No injury tables parsed from ESPN")
+        raise RuntimeError("ESPN layout changed – no injury tables found")
+
     out = pd.concat(frames, ignore_index=True)
     out["scraped_at"] = dt.datetime.utcnow()
     return out
 
+
 def load() -> None:
+    """Scrape, then append to BigQuery."""
     df = _scrape()
-    bigquery.Client().load_table_from_dataframe(
-        df, BQ_TABLE,
+
+    client = bigquery.Client()
+    job = client.load_table_from_dataframe(
+        df,
+        BQ_TABLE,
         job_config=bigquery.LoadJobConfig(write_disposition="WRITE_APPEND"),
-    ).result()
-    print(f"[injuries] {len(df)} rows appended to {BQ_TABLE}")
+    )
+    job.result()  # wait for completion
+    print(f"[injuries] Loaded {len(df)} rows into {BQ_TABLE}")
+
 
 if __name__ == "__main__":
     load()
