@@ -7,7 +7,7 @@ BQ_TABLE = "myproject.nba_raw.stg_injury_updates"   # <- adjust once
 
 @asset(
     name="injuries_raw",                # shows up as that name in Dagster UI
-    io_manager_key="bigquery_io_manager",
+    #io_manager_key="bigquery_io_manager",
     compute_kind="python",
 )
 def injuries_raw(context) -> Nothing:

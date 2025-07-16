@@ -7,7 +7,7 @@ BQ_TABLE = "myproject.nba_raw.stg_player_defense"
 
 @asset(
     name="defense_raw",
-    io_manager_key="bigquery_io_manager",
+    #io_manager_key="bigquery_io_manager",
 )
 def defense_raw(context) -> Nothing:
     df = fetch(season="2024-25")
