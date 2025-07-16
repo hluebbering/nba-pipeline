@@ -1,2 +1,10 @@
+[project]
+name = "nba-pipeline"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]          # <-- matches the folder you just verified
+
 [tool.dagster]
-module = "nba_engine"
+module = "nba_engine"    # Dagster will import src/nba_engine/__init__.py

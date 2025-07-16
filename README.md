@@ -204,8 +204,8 @@ PY
 
 # start Dagster UI
 dagster dev -m nba_engine.repository
-
-
+export BIGQUERY_PROJECT="nba-insight-dev"
+dagster asset materialize --select injuries_raw -m nba_engine.repository
 
 
 ## Contributing

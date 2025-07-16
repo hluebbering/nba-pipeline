@@ -16,14 +16,16 @@ BQ_TABLE = os.getenv("BQ_DEF_TABLE",
 
 
 def fetch(season: str = "2024-25") -> pd.DataFrame:
-    df = leaguedashptdefend.LeagueDashPTDefend(
+    # NOTE: correct class name is LeagueDashPtDefend  (lower-case “t”)
+    df = leaguedashptdefend.LeagueDashPtDefend(
         season=season,
-        per_mode_simple="PerGame"   # “PerGame” rows already scaled
+        per_mode_simple="PerGame",
     ).get_data_frames()[0]
 
     df["season"] = season
     df["ingest_ts"] = dt.datetime.utcnow()
     return df
+
 
 
 def load() -> None:
