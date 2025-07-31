@@ -217,6 +217,10 @@ git clone https://github.com/hluebbering/nba-pipeline.git ~/nba-pipeline
 
 python3 ~/nba-pipeline/src/nba_engine/ingestion/boxscores_advanced.py --bq
 
+# Player boxscores-advanced → BigQuery  (03:15 UTC every day)
+15 3 * * * . $HOME/nba-venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=$HOME/nba-loader.json python $HOME/nba-pipeline/src/nba_engine/ingestion/boxscores_advanced.py --bq >> $HOME/boxscores.log 2>&1
+
+
 
 ## Contributing
 
