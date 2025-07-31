@@ -4,17 +4,20 @@
 
 
 
-- [Core Questions](#core-questions)
-- [Objectives](#objectives)
-- [Architecture](#architecture)
-- [Data Sources](#data-sources)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Setup](#setup)
-- [Quickstart](#quickstart)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+- [NBA Insight Engine](#nba-insight-engine)
+  - [Core Questions](#core-questions)
+  - [Objectives](#objectives)
+  - [Architecture](#architecture)
+    - [Pipeline Steps](#pipeline-steps)
+  - [Data Sources](#data-sources)
+  - [Tech Stack](#tech-stack)
+  - [Project Structure](#project-structure)
+  - [Setup](#setup)
+  - [Quickstart](#quickstart)
+  - [Roadmap](#roadmap)
+- [start Dagster UI](#start-dagster-ui)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 
 
@@ -206,6 +209,13 @@ PY
 dagster dev -m nba_engine.repository
 export BIGQUERY_PROJECT="nba-insight-dev"
 dagster asset materialize --select injuries_raw -m nba_engine.repository
+
+
+
+
+git clone https://github.com/hluebbering/nba-pipeline.git ~/nba-pipeline
+
+python3 ~/nba-pipeline/src/nba_engine/ingestion/boxscores_advanced.py --bq
 
 
 ## Contributing
