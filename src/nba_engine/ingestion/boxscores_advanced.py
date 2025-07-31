@@ -75,44 +75,25 @@ def fetch_player_boxscores_advanced() -> pd.DataFrame:
     return full
 
 
+
+    
+
+
 def load_to_bigquery(df: pd.DataFrame, table: str = BQ_TABLE) -> None:
     if df.empty:
+        print("Nothing to load – dataframe empty")
         return
-    cfg = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
-    bigquery.Client(project=PROJECT_ID).load_table_from_dataframe(
-        df, table, job_config=cfg
-    ).result()
-    
-    
 
-
-def load_to_bigquery(df: pd.DataFrame, table: str = BQ_TABLE) -> None:
     client = bigquery.Client(project=PROJECT_ID)
 
-    # ── ensure dataset exists ───────────────────────────
-    dataset_id = f"{PROJECT_ID}.{DATASET}"
-    try:
-        client.get_dataset(dataset_id)      # raises 404 if missing
-    except Exception:
-        client.create_dataset(bigquery.Dataset(dataset_id), exists_ok=True)
+    cfg = bigquery.LoadJobConfig(
+        write_disposition="WRITE_TRUNCATE",   # or WRITE_APPEND
+        location="US",                       # match your dataset region
+    )
 
-    # ── create empty table schema on first run (optional) ──
-    if df.empty:
-        schema = [
-            bigquery.SchemaField("GAME_ID", "STRING"),
-            bigquery.SchemaField("PLAYER_ID", "STRING"),
-            bigquery.SchemaField("GAME_DATE", "DATE"),
-            bigquery.SchemaField("MATCHUP", "STRING"),
-            # … add the rest of your columns here
-        ]
-        client.create_table(bigquery.Table(table, schema=schema), exists_ok=True)
-        print("Created empty table →", table)
-        return
-
-    cfg = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
     job = client.load_table_from_dataframe(df, table, job_config=cfg)
-    job.result()
-    print("Loaded", len(df), "rows to", table)
+    job.result()        # wait / raise on error
+    print(f"✓ Loaded {len(df):,} rows to {table}")
 
 
 # quick manual run

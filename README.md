@@ -16,6 +16,7 @@
   - [Quickstart](#quickstart)
   - [Roadmap](#roadmap)
 - [start Dagster UI](#start-dagster-ui)
+- [Player boxscores-advanced → BigQuery  (03:15 UTC every day)](#player-boxscores-advanced--bigquery--0315-utc-every-day)
   - [Contributing](#contributing)
   - [License](#license)
 
@@ -219,6 +220,50 @@ python3 ~/nba-pipeline/src/nba_engine/ingestion/boxscores_advanced.py --bq
 
 # Player boxscores-advanced → BigQuery  (03:15 UTC every day)
 15 3 * * * . $HOME/nba-venv/bin/activate && GOOGLE_APPLICATION_CREDENTIALS=$HOME/nba-loader.json python $HOME/nba-pipeline/src/nba_engine/ingestion/boxscores_advanced.py --bq >> $HOME/boxscores.log 2>&1
+
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=$HOME/nba-loader.json
+export PYTHONPATH=$HOME/nba-pipeline/src:$PYTHONPATH
+
+python - <<'PY'
+import json, pprint, datetime as dt
+from google.cloud import bigquery
+from nba_engine.ingestion import boxscores_advanced as bx
+
+PROJECT   = "nba-insight-dev"
+TABLE_ID  = "nba_raw.player_boxscores_advanced"   # short form ok
+
+df = bx.fetch_player_boxscores_advanced()
+print("• DataFrame rows =", len(df))
+
+client = bigquery.Client(project=PROJECT)
+job = client.load_table_from_dataframe(
+        df,
+        TABLE_ID,
+        job_config=bigquery.LoadJobConfig(
+            write_disposition="WRITE_TRUNCATE",
+            # Uncomment next line if your dataset is *US*:
+            # location="US",
+        ),
+)
+print("• Job ID:", job.job_id)
+job.result(retry=None)         # wait for finish
+
+if job.error_result:
+    print("\n=== BIGQUERY ERROR RESULT ===")
+    pprint.pp(job.error_result)
+    print("\n=== BIGQUERY ERRORS (list) ===")
+    pprint.pp(job.errors)
+else:
+    tbl = client.get_table(TABLE_ID)
+    print(f"\n✓ Loaded {tbl.num_rows:,} rows at",
+          dt.datetime.utcnow().isoformat(timespec='seconds'))
+PY
+
+```
+
+
 
 
 
