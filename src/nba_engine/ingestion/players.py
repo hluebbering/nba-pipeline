@@ -7,7 +7,8 @@ import os, datetime as dt, pandas as pd
 from google.cloud import bigquery
 from nba_api.stats.static import players as nba_players
 
-BQ_TABLE = "myproject.nba_raw.raw_players"     # adjust to your project.dataset
+#BQ_TABLE = "myproject.nba_raw.raw_players"     # adjust to your project.dataset
+BQ_TABLE = "nba-insight-dev.nba_raw.raw_players"
 
 def load() -> None:
     # 1  create dataframe
