@@ -97,17 +97,17 @@ def load_to_bigquery(df: pd.DataFrame, table: str = BQ_TABLE) -> None:
         client.create_dataset(bigquery.Dataset(dataset_id), exists_ok=True)
 
     # ── create empty table schema on first run (optional) ──
-    # if df.empty:
-    #     schema = [
-    #         bigquery.SchemaField("GAME_ID", "STRING"),
-    #         bigquery.SchemaField("PLAYER_ID", "STRING"),
-    #         bigquery.SchemaField("GAME_DATE", "DATE"),
-    #         bigquery.SchemaField("MATCHUP", "STRING"),
-    #         # … add the rest of your columns here
-    #     ]
-    #     client.create_table(bigquery.Table(table, schema=schema), exists_ok=True)
-    #     print("Created empty table →", table)
-    #     return
+    if df.empty:
+        schema = [
+            bigquery.SchemaField("GAME_ID", "STRING"),
+            bigquery.SchemaField("PLAYER_ID", "STRING"),
+            bigquery.SchemaField("GAME_DATE", "DATE"),
+            bigquery.SchemaField("MATCHUP", "STRING"),
+            # … add the rest of your columns here
+        ]
+        client.create_table(bigquery.Table(table, schema=schema), exists_ok=True)
+        print("Created empty table →", table)
+        return
 
     cfg = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
     job = client.load_table_from_dataframe(df, table, job_config=cfg)
