@@ -201,10 +201,6 @@ print("leaguegamelog rows →", len(rows))
 PY
 
 
-python - <<'PY'
-from nba_engine.assets.leaguegamelog_2025 import leaguegamelog_2025
-print("rows:", leaguegamelog_2025().metadata["rows"])
-PY
 
 # start Dagster UI
 dagster dev -m nba_engine.repository
