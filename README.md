@@ -1,25 +1,19 @@
-# NBA Insight Engine
+# NBA Player Performance Prediction Pipeline
 
 > Build a reusable pipeline that ingests multi‑modal NBA data, transforms it in BigQuery, and serves advanced models & dashboards that explain storylines (e.g., Pacers’ Game 7 push) and project future performance (e.g., Timberwolves 2025 season outlook).
 
 
+This project builds an end-to-end pipeline to predict NBA player performance for upcoming games, with a focus on points scored. It integrates multiple data sources — player game logs, advanced efficiency metrics, lineup and injury data, opponent strength, and analyst projections — to generate features that capture both player trends and matchup context.
 
-- [NBA Insight Engine](#nba-insight-engine)
-  - [Core Questions](#core-questions)
-  - [Objectives](#objectives)
-  - [Architecture](#architecture)
-    - [Pipeline Steps](#pipeline-steps)
-  - [Data Sources](#data-sources)
-  - [Tech Stack](#tech-stack)
-  - [Project Structure](#project-structure)
-  - [Setup](#setup)
-  - [Quickstart](#quickstart)
-  - [Roadmap](#roadmap)
-- [start Dagster UI](#start-dagster-ui)
-- [Player boxscores-advanced → BigQuery  (03:15 UTC every day)](#player-boxscores-advanced--bigquery--0315-utc-every-day)
-  - [Contributing](#contributing)
-  - [License](#license)
+## Key highlights:
 
+- Feature Engineering: Rolling averages, efficiency metrics (TS%, EFF, USG%), opponent-specific stats, and lineup adjustments.
+- Modeling: Ensemble methods (CatBoost, RandomForest) and Bayesian regression to balance interpretability and predictive accuracy.
+- Pipeline Design: Bulk ingestion via NBA API and ESPN scrape, optimized with parallelization and caching to reduce latency.
+- Evaluation: RMSE and R² on next-game predictions; scenario testing with injury/rotation shocks.
+- Interview Prep Angle: Demonstrates advanced SQL/ETL, causal inference thinking (injury/rotation as natural experiments), and storytelling around model-driven insights.
+
+This pipeline mirrors real-world data science workflows: ingesting messy sports data, building robust features, optimizing pipelines, and translating outputs into actionable insights for decision-making.
 
 
 
